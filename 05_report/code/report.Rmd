@@ -1,0 +1,114 @@
+---
+title: "Problem Set 1"
+author: "Hiraoka Rintaro"
+date: "2023/2/8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. 問題設定
+経済成長と経済格差には、どのような関係性があるだろうか。国民所得に関する研究の大家である経済学者サイモン・クズネッツは、「経済成長が進むにつれ、格差は最初は拡大するが、その後解消に向かうだろう」という楽観的な仮説を立てた。このようなパターンを「クズネッツ曲線」と呼ぶ。
+
+この課題では、より一般的な格差の指標であるジニ係数を用いて、アメリカと日本の両国で「クズネッツ曲線」の仮説が成り立つかを実証的に検証する。
+
+### 本課題のデータ分析の問い
+日本とアメリカのジニ係数において、「クズネッツ曲線」のパターンは確認されるか。
+
+### 用いるデータ
+inequality:ジニ係数のデータ (アメリカ https://databank.worldbank.org/reports.aspx?source=2&series=SI.POV.GINI&country=USA, 日本 https://www.mhlw.go.jp/stf/wp/hakusyo/kousei/19/backdata/01-01-08-09.html)
+
+## 2. データの概要
+
+### データの前処理
+inequalityについて、日本は1990年から、アメリカは1975年から2015年にかけて、欠損値を線形補完した上で5年おきのデータを抽出したものを使用した。
+
+### 記述統計
+```{r summary, echo = FALSE, message= FALSE, warning= FALSE}
+library("tidyverse")
+table <- readRDS(file = here::here("04_analyze", "summary", "output", "table.rds"))
+table %>%
+  kableExtra::kbl() %>%
+  kableExtra::kable_styling(full_width = FALSE) %>%
+  kableExtra::kable_classic_2()
+```
+
+### 各年におけるジニ係数のグラフ
+日本
+
+```{r figureJ, echo = FALSE, message= FALSE, warning= FALSE}
+library("tidyverse")
+
+master <- readRDS(here::here("03_build", "master", "output", "master.rds"))
+
+JPN <- dplyr::filter(master, country == "JPN") %>%
+    dplyr::select(year, gini)
+
+library(ggplot2)
+
+ggplot(data = JPN, aes(year, gini)) + geom_point() + geom_line()
+```
+
+アメリカ
+
+```{r figureU, echo = FALSE, message= FALSE, warning= FALSE}
+library("tidyverse")
+
+master <- readRDS(here::here("03_build", "master", "output", "master.rds"))
+
+USA <- dplyr::filter(master, country == "USA") %>%
+    dplyr::select(year, gini)
+
+library(ggplot2)
+  
+ggplot(data = USA, aes(year, gini)) + geom_point() + geom_line()
+```
+
+## 3. 回帰分析
+
+### 推定する回帰式
+「経済成長が進むにつれ、格差は最初は拡大するが、その後解消に向かうだろう」というクズネッツの仮説が正しければ、格差は上に凸な2次関数で近似できると考えられる。そのため、yをジニ係数、xを年として以下のような回帰式を仮定した。
+$$
+\begin{aligned}
+  y  & = \beta_0 + \beta_1 x + \beta_2 x^2.
+\end{aligned}
+$$
+
+### 回帰分析の結果
+日本
+
+```{r regJ, echo = FALSE, message= FALSE, warning= FALSE}
+library("tidyverse")
+
+master_data <- readRDS(here::here("03_build", "master", "output", "master.rds"))
+
+JPN_data <- dplyr::filter(master_data, country == "JPN") %>%
+    dplyr::select(year, gini)
+
+JPN_res <- lm(JPN_data$gini ~ I((JPN_data$year)^2) + JPN_data$year)
+summary(JPN_res)
+
+```
+
+アメリカ
+
+```{r regU, echo = FALSE, message= FALSE, warning= FALSE}
+library("tidyverse")
+
+master_data <- readRDS(here::here("03_build", "master", "output", "master.rds"))
+
+USA_data <- dplyr::filter(master_data, country == "USA") %>%
+    dplyr::select(year, gini)
+
+USA_res <- lm(USA_data$gini ~ I((USA_data$year)^2) + USA_data$year)
+summary(USA_res)
+
+```
+
+日本、アメリカ共に$\beta_2$が負と推定され、クズネッツ曲線のアイデアに肯定的な結果となった。
+
+しかし、日本の推定結果は有意水準10%にも満たないほか、アメリカの推定結果も有意水準5%に届いていない。
+
+以上のことから、日本とアメリカの両国について、ジニ係数についてのクズネッツ曲線の仮説が成り立つとは言い難い。
